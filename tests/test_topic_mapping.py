@@ -2,7 +2,6 @@ import pytest
 
 from victron_mqtt_bridge.topic_mapping import resolve_topic
 
-
 # ---------------------------------------------------------------------------
 # Exact (leaf) mappings
 # ---------------------------------------------------------------------------
