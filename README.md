@@ -90,6 +90,33 @@ On startup you should see log lines like:
 2026-05-12 21:00:01 INFO ... Bridging message {'from': 'N/a1b2c3d4e5f6/system/0/Dc/Battery/Soc', 'to': 'victron/battery/soc', 'retain': True}
 ```
 
+## Local development
+
+A `docker-compose.yaml` is included under `local-dev/` that starts a local [Mosquitto](https://mosquitto.org/) broker to use as the downstream target during development.
+
+```sh
+docker compose -f local-dev/docker-compose.yaml up -d
+```
+
+This starts Mosquitto on `localhost:1883` with anonymous connections enabled (see `local-dev/mosquitto.conf`). Point the downstream settings at it:
+
+```sh
+DOWNSTREAM_MQTT_HOST=localhost
+DOWNSTREAM_MQTT_PORT=1883
+```
+
+To watch all messages arriving on the local broker in real time:
+
+```sh
+mosquitto_sub -h localhost -t '#' -v
+```
+
+To stop the broker:
+
+```sh
+docker compose -f local-dev/docker-compose.yaml down
+```
+
 ## Development
 
 ```sh
