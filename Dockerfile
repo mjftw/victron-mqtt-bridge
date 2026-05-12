@@ -12,6 +12,8 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 # Copy source and install the package itself
+# README.md is required by pyproject.toml and must be present for uv_build
+COPY README.md ./
 COPY src/ ./src/
 RUN uv sync --frozen --no-dev
 
