@@ -56,7 +56,7 @@ async def _collect_topic_paths(
 async def _send_keepalive(client: aiomqtt.Client, serial: str) -> None:
     topic = _KEEPALIVE_TOPIC_TEMPLATE.format(serial=serial)
     await client.publish(topic, payload="")
-    logger.debug("Sent keepalive", extra={"serial": serial})
+    logger.debug("Sent keepalive for serial %s", serial)
 
 
 async def _keepalive_loop(
@@ -82,7 +82,7 @@ async def _discover_serial(client: aiomqtt.Client) -> str:
         parts = str(message.topic).split("/")
         if len(parts) >= 2:
             serial = parts[1]
-            logger.info("Discovered Victron serial", extra={"serial": serial})
+            logger.info("Discovered Victron serial: %s", serial)
             return serial
     raise RuntimeError("MQTT message stream ended before serial was discovered")
 
@@ -140,11 +140,9 @@ class VictronMqttClient:
             tls_params=tls_params,
         ) as client:
             logger.info(
-                "Connected to Victron broker",
-                extra={
-                    "host": self._settings.victron_mqtt_host,
-                    "port": self._settings.victron_mqtt_port,
-                },
+                "Connected to Victron broker at %s:%s",
+                self._settings.victron_mqtt_host,
+                self._settings.victron_mqtt_port,
             )
             serial = await _discover_serial(client)
 
@@ -164,7 +162,7 @@ class VictronMqttClient:
                 prefix = _VICTRON_DATA_PREFIX_TEMPLATE.format(serial=serial)
                 topic = f"{prefix}{relative_path}"
                 await client.subscribe(topic)
-                logger.debug("Subscribed to Victron topic", extra={"topic": topic})
+                logger.debug("Subscribed to Victron topic %s", topic)
 
             await _send_keepalive(client, serial)
 
@@ -191,10 +189,7 @@ class VictronMqttClient:
                 incoming_topic, serial, self._topic_mapping
             )
             if downstream_topic is None:
-                logger.debug(
-                    "Received unmapped topic, skipping",
-                    extra={"topic": incoming_topic},
-                )
+                logger.debug("Received unmapped topic, skipping: %s", incoming_topic)
                 continue
 
             payload = (
@@ -203,12 +198,10 @@ class VictronMqttClient:
                 else str(message.payload)
             )
             logger.info(
-                "Bridging message",
-                extra={
-                    "from": incoming_topic,
-                    "to": downstream_topic,
-                    "retain": message.retain,
-                },
+                "Bridging %s -> %s%s",
+                incoming_topic,
+                downstream_topic,
+                " [retain]" if message.retain else "",
             )
             await self._downstream.publish(
                 downstream_topic,

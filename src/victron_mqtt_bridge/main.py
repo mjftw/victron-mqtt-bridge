@@ -55,10 +55,14 @@ def main() -> None:
         print(line)
     print()
 
-    if not asyncio.run(check_connectivity(settings)):
-        sys.exit(1)
+    try:
+        if not asyncio.run(check_connectivity(settings)):
+            sys.exit(1)
 
-    asyncio.run(run(settings))
+        asyncio.run(run(settings))
+    except KeyboardInterrupt:
+        print("\nShutting down.")
+        sys.exit(0)
 
 
 if __name__ == "__main__":
