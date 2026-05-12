@@ -6,46 +6,12 @@ import aiomqtt
 from victron_mqtt_bridge.client.publisher import MqttPublisher
 from victron_mqtt_bridge.config import Settings
 from victron_mqtt_bridge.topic_mapping import TopicMapping, resolve_topic
-from victron_mqtt_bridge.topic_tree import build_topic_tree, render_topic_tree
 
 logger = logging.getLogger(__name__)
 
 _SERIAL_DISCOVERY_TOPIC = "N/+/system/0/Serial"
 _KEEPALIVE_TOPIC_TEMPLATE = "R/{serial}/keepalive"
 _VICTRON_DATA_PREFIX_TEMPLATE = "N/{serial}/"
-_TOPIC_DISCOVERY_WINDOW_SECONDS = 5.0
-
-
-# ---------------------------------------------------------------------------
-# Topic discovery
-# ---------------------------------------------------------------------------
-
-
-async def _collect_topic_paths(
-    client: aiomqtt.Client,
-    serial: str,
-    window_seconds: float,
-) -> frozenset[str]:
-    """Subscribe to N/<serial>/#, send a keepalive, collect relative topic
-    paths for window_seconds, then unsubscribe.
-    """
-    wildcard = f"N/{serial}/#"
-    prefix = _VICTRON_DATA_PREFIX_TEMPLATE.format(serial=serial)
-    await client.subscribe(wildcard)
-    await _send_keepalive(client, serial)
-
-    paths: set[str] = set()
-    try:
-        async with asyncio.timeout(window_seconds):
-            async for message in client.messages:
-                topic = str(message.topic)
-                if topic.startswith(prefix):
-                    paths.add(topic[len(prefix):])
-    except TimeoutError:
-        pass
-
-    await client.unsubscribe(wildcard)
-    return frozenset(paths)
 
 
 # ---------------------------------------------------------------------------
@@ -115,8 +81,8 @@ def resolve_downstream_topic(
 
 class VictronMqttClient:
     """Connects to a Victron Cerbo GX MQTT broker, discovers the device serial,
-    logs the full topic tree on startup, maintains a keep-alive, and bridges
-    mapped telemetry topics to a downstream MQTT publisher.
+    maintains a keep-alive, and bridges mapped telemetry topics to a downstream
+    MQTT publisher.
     """
 
     def __init__(
@@ -144,18 +110,6 @@ class VictronMqttClient:
                 self._settings.victron_mqtt_port,
             )
             serial = await _discover_serial(client)
-
-            logger.info(
-                "Discovering available topics (collecting for %.0f s)...",
-                _TOPIC_DISCOVERY_WINDOW_SECONDS,
-            )
-            paths = await _collect_topic_paths(
-                client, serial, _TOPIC_DISCOVERY_WINDOW_SECONDS
-            )
-            tree = build_topic_tree(paths)
-            logger.info("Available Victron topics under N/%s/", serial)
-            for line in render_topic_tree(tree):
-                logger.info(line)
 
             for relative_path in self._topic_mapping:
                 prefix = _VICTRON_DATA_PREFIX_TEMPLATE.format(serial=serial)

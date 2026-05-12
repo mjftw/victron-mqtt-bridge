@@ -401,4 +401,4 @@ mosquitto_sub -h <cerbo-ip> -t "N/#" -v
 mosquitto_sub -h <cerbo-ip> -t "N/<serial>/system/#" -v
 ```
 
-The bridge itself logs the full topic tree for your device on startup — look for the `Available Victron topics under N/<serial>/` log block.
+The bridge logs each topic it subscribes to at `DEBUG` level on startup.
