@@ -140,18 +140,19 @@ docker compose -f local-dev/docker-compose.yaml down
 
 ## Development
 
+A `justfile` is included with all common commands. Install [just](https://just.systems) then:
+
 ```sh
-# Run tests
-uv run pytest
-
-# Lint
-uv run ruff check src/ tests/
-
-# Format
-uv run ruff format src/ tests/
-
-# Type check
-uv run ty check src/
+just          # lint + typecheck + test (default)
+just lint     # ruff check
+just format   # ruff format
+just typecheck # ty check
+just test     # pytest
+just run      # run the bridge locally (reads .env)
+just build    # build Docker image
+just dev-up   # start local Mosquitto broker
+just dev-down # stop local Mosquitto broker
+just dev-watch # subscribe to all topics on the local broker
 ```
 
 ### Project structure
