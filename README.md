@@ -4,17 +4,15 @@
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
-A lightweight bridge that reads live telemetry from a [Victron Cerbo GX](https://www.victronenergy.com/panel-systems-remote-monitoring/cerbo-gx) over its local MQTT broker and republishes selected topics to any downstream MQTT broker — such as a Home Assistant instance, InfluxDB ingestion pipeline, or Node-RED flow.
+A lightweight bridge that reads live telemetry from a [Victron Cerbo GX](https://www.victronenergy.com/panel-systems-remote-monitoring/cerbo-gx) over its local MQTT broker and republishes selected topics to any downstream MQTT broker, such as a Home Assistant instance, InfluxDB ingestion pipeline, or Node-RED flow.
 
 ## Why this exists
 
-The Victron Cerbo GX exposes a rich local MQTT broker, but using it directly from external systems has two friction points:
+I wanted a simple way to get data from the Victron Cerbo GX's MQTT broker into a central broker I already use to collect data from other sources, but a standard MQTT bridge doesn't work out of the box for two reasons.
 
-1. **Serial-prefixed topics.** Every topic is prefixed with `N/<serial>/`, where `<serial>` is the device's unique identifier. Hard-coding this into dashboards or automations means they break when you replace hardware.
+First, the Cerbo GX requires a periodic keepalive publish to `R/<serial>/keepalive` or it stops streaming data after roughly one minute. A passive bridge silently starves.
 
-2. **Mandatory keep-alive.** Without a periodic publish to `R/<serial>/keepalive`, the broker stops streaming data after roughly one minute. Every consumer has to implement this independently.
-
-This service handles both: it discovers the serial automatically on startup and maintains the keep-alive for the lifetime of the connection, so downstream consumers see clean, stable topic names with no knowledge of Victron internals.
+Second, a transparent bridge would expose the raw Victron topic structure (serial-prefixed, deep paths like `N/a1b2c3d4e5f6/system/0/Dc/Battery/Soc`) to every downstream client. I wanted to hide that detail and remap only the topics I care about to clean, stable names of my choosing, so nothing downstream needs to know anything about the Victron topic tree.
 
 ---
 
@@ -36,12 +34,12 @@ This service handles both: it discovers the serial automatically on startup and 
 
 ## Features
 
-- **Automatic serial discovery** — subscribes to `N/+/system/0/Serial` and reads the device identifier from the first message; no manual configuration of the serial needed.
-- **Keep-alive managed for you** — sends an immediate keepalive on connect, then repeats every `KEEPALIVE_INTERVAL_SECONDS` (default 60 s).
-- **Leaf and branch mappings** — map individual topics exactly, or map an entire subtree with a trailing `/` and a single MQTT `#` subscription.
-- **Retain flag preserved** — the MQTT retain flag from each Victron message is forwarded unchanged to the downstream broker.
-- **Pre-flight connectivity check** — verifies both brokers are reachable before starting, with clear error output if they are not.
-- **Docker-ready** — multi-stage `Dockerfile` produces a minimal runtime image with no build tools or dev dependencies.
+- **Automatic serial discovery**: subscribes to `N/+/system/0/Serial` and reads the device identifier from the first message; no manual configuration of the serial needed.
+- **Keep-alive managed for you**: sends an immediate keepalive on connect, then repeats every `KEEPALIVE_INTERVAL_SECONDS` (default 60 s).
+- **Leaf and branch mappings**: map individual topics exactly, or map an entire subtree with a trailing `/` and a single MQTT `#` subscription.
+- **Retain flag preserved**: the MQTT retain flag from each Victron message is forwarded unchanged to the downstream broker.
+- **Pre-flight connectivity check**: verifies both brokers are reachable before starting, with clear error output if they are not.
+- **Docker-ready**: multi-stage `Dockerfile` produces a minimal runtime image with no build tools or dev dependencies.
 
 ---
 
@@ -58,7 +56,7 @@ For Docker usage only Docker is required.
 
 ```sh
 # 1. Clone the repo
-git clone https://github.com/your-username/victron-mqtt-bridge.git
+git clone https://github.com/mjftw/victron-mqtt-bridge.git
 cd victron-mqtt-bridge
 
 # 2. Install dependencies
@@ -76,27 +74,27 @@ uv run victron-mqtt-bridge
 
 ## Configuration
 
-All settings are read from environment variables or a `.env` file in the project root. Copy `.env.example` to get started — it includes inline documentation for every variable.
+All settings are read from environment variables or a `.env` file in the project root. Copy `.env.example` to get started; it includes inline documentation for every variable.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `VICTRON_MQTT_HOST` | Yes | — | IP or hostname of the Cerbo GX on your local network |
+| `VICTRON_MQTT_HOST` | Yes | n/a | IP or hostname of the Cerbo GX on your local network |
 | `VICTRON_MQTT_USE_SSL` | No | `false` | Connect over SSL on port 8883 instead of plain 1883 |
 | `KEEPALIVE_INTERVAL_SECONDS` | No | `60` | How often (in seconds) to send the keepalive signal |
-| `TOPIC_MAPPING` | Yes | — | JSON object mapping Victron paths to downstream topics (see below) |
-| `DOWNSTREAM_MQTT_HOST` | Yes | — | IP or hostname of the downstream broker |
+| `TOPIC_MAPPING` | Yes | n/a | JSON object mapping Victron paths to downstream topics (see below) |
+| `DOWNSTREAM_MQTT_HOST` | Yes | n/a | IP or hostname of the downstream broker |
 | `DOWNSTREAM_MQTT_PORT` | No | `1883` | Port of the downstream broker |
 | `DOWNSTREAM_MQTT_USE_SSL` | No | `false` | Connect to downstream broker over SSL |
-| `DOWNSTREAM_MQTT_USERNAME` | No | — | Username for the downstream broker |
-| `DOWNSTREAM_MQTT_PASSWORD` | No | — | Password for the downstream broker |
+| `DOWNSTREAM_MQTT_USERNAME` | No | n/a | Username for the downstream broker |
+| `DOWNSTREAM_MQTT_PASSWORD` | No | n/a | Password for the downstream broker |
 
 ---
 
 ## Topic mapping
 
-`TOPIC_MAPPING` is a JSON object. Keys are Victron **relative paths** — the segment of the topic after `N/<serial>/`. Values are the **full topic** to publish on the downstream broker.
+`TOPIC_MAPPING` is a JSON object. Keys are Victron **relative paths** (the segment of the topic after `N/<serial>/`). Values are the **full topic** to publish on the downstream broker.
 
-### Leaf mapping — exact path
+### Leaf mapping (exact path)
 
 Maps a single Victron topic to a single downstream topic.
 
@@ -108,7 +106,7 @@ TOPIC_MAPPING='{
 }'
 ```
 
-### Branch mapping — trailing `/`
+### Branch mapping (trailing `/`)
 
 A key ending with `/` subscribes to the **entire subtree** under that path using an MQTT `#` wildcard, and forwards every message by appending the remaining path segments to the downstream prefix.
 
@@ -119,7 +117,7 @@ TOPIC_MAPPING='{
 }'
 ```
 
-Example: with `"system/0/Dc/Battery/": "victron/battery/"`:
+Example with `"system/0/Dc/Battery/": "victron/battery/"`:
 
 | Victron topic | Downstream topic |
 |---|---|
@@ -163,7 +161,7 @@ Press `Ctrl+C` to stop cleanly.
 
 ## Docker
 
-A multi-stage `Dockerfile` is included. The builder stage installs runtime dependencies with uv into an isolated virtualenv; the runtime stage copies only the virtualenv and source — no uv, no build tools, no dev dependencies.
+A multi-stage `Dockerfile` is included. The builder stage installs runtime dependencies with uv into an isolated virtualenv; the runtime stage copies only the virtualenv and source, with no uv, build tools, or dev dependencies.
 
 ```sh
 # Build
@@ -207,7 +205,7 @@ mosquitto_sub -h localhost -t '#' -v
 Contributions are welcome. Please:
 
 1. Fork the repository and create a branch from `main`.
-2. Run `just` (lint + typecheck + test) before opening a pull request — all checks must pass.
+2. Run `just` (lint + typecheck + test) before opening a pull request. All checks must pass.
 3. Keep commits focused and write a clear commit message explaining *why*, not just *what*.
 4. Open an issue first for non-trivial changes so we can discuss the approach.
 
@@ -236,23 +234,23 @@ Install [just](https://just.systems) then run `just` with no arguments to lint, 
 
 ```
 src/victron_mqtt_bridge/
-├── config.py                      — all settings (pydantic-settings, env-driven)
-├── topic_mapping.py               — TopicMapping type alias + resolve_topic()
-├── main.py                        — entry point; wires components together
+├── config.py                      # all settings (pydantic-settings, env-driven)
+├── topic_mapping.py               # TopicMapping type alias + resolve_topic()
+├── main.py                        # entry point; wires components together
 └── client/
-    ├── publisher.py               — MqttPublisher Protocol
-    ├── downstream_mqtt_client.py  — publishes to the downstream broker
-    └── victron_mqtt_client.py     — connects to Victron, runs keepalive, bridges messages
+    ├── publisher.py               # MqttPublisher Protocol
+    ├── downstream_mqtt_client.py  # publishes to the downstream broker
+    └── victron_mqtt_client.py     # connects to Victron, runs keepalive, bridges messages
 
 tests/
-├── fakes/fake_mqtt_publisher.py        — in-memory MqttPublisher for use in tests
-├── test_topic_mapping.py               — unit tests for resolve_topic()
-└── client/test_victron_mqtt_client.py  — behaviour-based tests (test_should_X_when_Y)
+├── fakes/fake_mqtt_publisher.py        # in-memory MqttPublisher for use in tests
+├── test_topic_mapping.py               # unit tests for resolve_topic()
+└── client/test_victron_mqtt_client.py  # behaviour-based tests (test_should_X_when_Y)
 ```
 
 ### Testing approach
 
-No mocks. `FakeMqttPublisher` is a real implementation of the `MqttPublisher` Protocol that records every `publish()` call in memory. The topic-resolution logic lives in the pure function `resolve_topic()` and is tested directly with known inputs — no broker or network needed.
+No mocks. `FakeMqttPublisher` is a real implementation of the `MqttPublisher` Protocol that records every `publish()` call in memory. The topic-resolution logic lives in the pure function `resolve_topic()` and is tested directly with known inputs, with no broker or network needed.
 
 ---
 
