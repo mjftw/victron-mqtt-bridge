@@ -3,6 +3,7 @@
 ![Python](https://img.shields.io/badge/python-3.13-blue?logo=python&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![Docker Hub](https://img.shields.io/docker/v/mjftw/victron-mqtt-bridge?sort=semver&logo=docker&logoColor=white&label=docker)](https://hub.docker.com/r/mjftw/victron-mqtt-bridge)
 
 A lightweight bridge that reads live telemetry from a [Victron Cerbo GX](https://www.victronenergy.com/panel-systems-remote-monitoring/cerbo-gx) over its local MQTT broker and republishes selected topics to any downstream MQTT broker, such as a Home Assistant instance, InfluxDB ingestion pipeline, or Node-RED flow.
 
@@ -158,20 +159,40 @@ Press `Ctrl+C` to stop cleanly.
 
 ## Docker
 
-A multi-stage `Dockerfile` is included. The builder stage installs runtime dependencies with uv into an isolated virtualenv; the runtime stage copies only the virtualenv and source, with no uv, build tools, or dev dependencies.
+Pre-built images are published to Docker Hub on every release:
 
 ```sh
-# Build
-docker build -t victron-mqtt-bridge .
+docker pull mjftw/victron-mqtt-bridge:latest
+```
 
-# Run with inline environment variables
+Run with inline environment variables:
+
+```sh
 docker run --rm \
   -e VICTRON_MQTT_HOST=192.168.1.83 \
   -e DOWNSTREAM_MQTT_HOST=192.168.1.200 \
   -e TOPIC_MAPPING='{"system/0/Dc/Battery/":"victron/battery/"}' \
-  victron-mqtt-bridge
+  mjftw/victron-mqtt-bridge
+```
 
-# Or using an env file
+Or using an env file:
+
+```sh
+docker run --rm --env-file .env mjftw/victron-mqtt-bridge
+```
+
+Pin to a specific release for production use:
+
+```sh
+docker run --rm --env-file .env mjftw/victron-mqtt-bridge:1.0.0
+```
+
+### Building locally
+
+A multi-stage `Dockerfile` is included. The builder stage installs runtime dependencies with uv into an isolated virtualenv; the runtime stage copies only the virtualenv and source, with no uv, build tools, or dev dependencies.
+
+```sh
+docker build -t victron-mqtt-bridge .
 docker run --rm --env-file .env victron-mqtt-bridge
 ```
 
