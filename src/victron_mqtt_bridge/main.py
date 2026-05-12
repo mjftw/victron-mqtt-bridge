@@ -50,7 +50,7 @@ async def check_connectivity(settings: Settings) -> bool:
 
 def main() -> None:
     print(BANNER)
-    settings = Settings()
+    settings = Settings()  # ty: ignore[missing-argument]
     for line in settings.display_lines():
         print(line)
     print()

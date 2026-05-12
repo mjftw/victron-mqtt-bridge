@@ -48,5 +48,5 @@ dev-down:
     docker compose -f local-dev/docker-compose.yaml down
 
 # Watch all messages arriving on the local broker
-dev-watch:
+dev-watch: dev-up run
     mosquitto_sub -h localhost -t '#' -v
