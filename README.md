@@ -101,6 +101,10 @@ mosquitto_pub -h <cerbo-ip> -t 'R/<serial>/keepalive' -m ''
 mosquitto_sub -h <cerbo-ip> -t 'N/#' -v
 ```
 
+The bridge also logs the full topic tree for your device on startup.
+
+For a curated reference of services, paths, units, and enum values see **[docs/victron-mqtt-topics.md](docs/victron-mqtt-topics.md)** (derived from the [official Venus OS dbus wiki](https://github.com/victronenergy/venus/wiki/dbus)).
+
 ## Running
 
 ```sh
