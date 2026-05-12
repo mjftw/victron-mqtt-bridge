@@ -15,8 +15,7 @@ logging.basicConfig(
 )
 
 
-async def run() -> None:
-    settings = Settings()
+async def run(settings: Settings) -> None:
     config = DownstreamConnectionConfig.from_settings(settings)
     downstream = DownstreamMqttClient(config)
     async with downstream.connected():
@@ -26,7 +25,11 @@ async def run() -> None:
 
 def main() -> None:
     print(BANNER)
-    asyncio.run(run())
+    settings = Settings()
+    for line in settings.display_lines():
+        print(line)
+    print()
+    asyncio.run(run(settings))
 
 
 if __name__ == "__main__":

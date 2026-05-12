@@ -21,3 +21,23 @@ class Settings(BaseSettings):
     @property
     def victron_mqtt_port(self) -> int:
         return 8883 if self.victron_mqtt_use_ssl else 1883
+
+    def display_lines(self) -> list[str]:
+        """Return human-readable config lines, omitting secrets."""
+        mapping_lines = [
+            f"    {src}  →  {dst}" for src, dst in self.topic_mapping.items()
+        ]
+        return [
+            "Configuration",
+            "─────────────────────────────────────────",
+            f"  Victron broker   : {self.victron_mqtt_host}:{self.victron_mqtt_port}"
+            + (" (SSL)" if self.victron_mqtt_use_ssl else ""),
+            f"  Keepalive        : every {self.keepalive_interval_seconds}s",
+            "  Downstream broker: "
+            f"{self.downstream_mqtt_host}:{self.downstream_mqtt_port}"
+            + (" (SSL)" if self.downstream_mqtt_use_ssl else ""),
+            f"  Downstream user  : {self.downstream_mqtt_username or '(none)'}",
+            "  Topic mapping    :",
+            *mapping_lines,
+            "─────────────────────────────────────────",
+        ]
