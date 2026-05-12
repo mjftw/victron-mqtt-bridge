@@ -34,12 +34,11 @@ Second, a transparent bridge would expose the raw Victron topic structure (seria
 
 ## Features
 
-- **Automatic serial discovery**: subscribes to `N/+/system/0/Serial` and reads the device identifier from the first message; no manual configuration of the serial needed.
-- **Keep-alive managed for you**: sends an immediate keepalive on connect, then repeats every `KEEPALIVE_INTERVAL_SECONDS` (default 60 s).
-- **Leaf and branch mappings**: map individual topics exactly, or map an entire subtree with a trailing `/` and a single MQTT `#` subscription.
-- **Retain flag preserved**: the MQTT retain flag from each Victron message is forwarded unchanged to the downstream broker.
-- **Pre-flight connectivity check**: verifies both brokers are reachable before starting, with clear error output if they are not.
-- **Docker-ready**: multi-stage `Dockerfile` produces a minimal runtime image with no build tools or dev dependencies.
+- **Topic remapping**: publish any Victron path to whatever downstream topic name you choose, keeping downstream clients completely decoupled from Victron internals.
+- **Keep-alive managed for you**: the keepalive is sent automatically so the data stream never stalls.
+- **Leaf and branch mappings**: map individual topics exactly, or forward an entire subtree with a single trailing `/`.
+- **Pre-flight connectivity check**: verifies both brokers are reachable before starting, with a clear error if they are not.
+- **Docker-ready**: ships a minimal multi-stage image with no build tools or dev dependencies.
 
 ---
 
