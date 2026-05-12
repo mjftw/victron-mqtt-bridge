@@ -90,6 +90,27 @@ On startup you should see log lines like:
 2026-05-12 21:00:01 INFO ... Bridging message {'from': 'N/a1b2c3d4e5f6/system/0/Dc/Battery/Soc', 'to': 'victron/battery/soc', 'retain': True}
 ```
 
+## Docker
+
+A multi-stage `Dockerfile` is included. The builder stage installs runtime
+dependencies with uv into a virtualenv; the runtime stage copies only the
+virtualenv and source — no uv, no build tools, no dev dependencies.
+
+```sh
+# Build
+docker build -t victron-mqtt-bridge .
+
+# Run (pass your environment variables in)
+docker run --rm \
+  -e VICTRON_MQTT_HOST=192.168.1.83 \
+  -e DOWNSTREAM_MQTT_HOST=192.168.1.200 \
+  -e TOPIC_MAPPING='{"system/0/Dc/Battery/Soc":"victron/battery/soc"}' \
+  victron-mqtt-bridge
+
+# Or using an env file
+docker run --rm --env-file .env victron-mqtt-bridge
+```
+
 ## Local development
 
 A `docker-compose.yaml` is included under `local-dev/` that starts a local [Mosquitto](https://mosquitto.org/) broker to use as the downstream target during development.
