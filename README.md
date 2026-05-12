@@ -25,9 +25,7 @@ Second, a transparent bridge would expose the raw Victron topic structure (seria
 - [Topic mapping](#topic-mapping)
 - [Running](#running)
 - [Docker](#docker)
-- [Local development](#local-development)
 - [Contributing](#contributing)
-- [Development reference](#development-reference)
 - [License](#license)
 
 ---
@@ -179,77 +177,9 @@ docker run --rm --env-file .env victron-mqtt-bridge
 
 ---
 
-## Local development
-
-A `docker-compose.yaml` under `local-dev/` starts a [Mosquitto](https://mosquitto.org/) broker on `localhost:1883` to use as the downstream target while developing.
-
-```sh
-just dev-up    # start the broker
-just run       # run the bridge (reads .env)
-just dev-watch # tail all messages arriving on the local broker
-just dev-down  # stop the broker
-```
-
-Or without `just`:
-
-```sh
-docker compose -f local-dev/docker-compose.yaml up -d
-mosquitto_sub -h localhost -t '#' -v
-```
-
----
-
 ## Contributing
 
-Contributions are welcome. Please:
-
-1. Fork the repository and create a branch from `main`.
-2. Run `just` (lint + typecheck + test) before opening a pull request. All checks must pass.
-3. Keep commits focused and write a clear commit message explaining *why*, not just *what*.
-4. Open an issue first for non-trivial changes so we can discuss the approach.
-
-There is no formal CLA. By submitting a pull request you agree that your contributions will be licensed under the MIT licence.
-
----
-
-## Development reference
-
-Install [just](https://just.systems) then run `just` with no arguments to lint, typecheck, and test in one step.
-
-| Command | Description |
-|---|---|
-| `just` | lint + typecheck + test (default) |
-| `just lint` | ruff check |
-| `just format` | ruff format |
-| `just typecheck` | ty check |
-| `just test` | pytest |
-| `just run` | run the bridge locally (reads `.env`) |
-| `just build` | build Docker image |
-| `just dev-up` | start local Mosquitto broker |
-| `just dev-down` | stop local Mosquitto broker |
-| `just dev-watch` | start broker + bridge and subscribe to all topics |
-
-### Project structure
-
-```
-src/victron_mqtt_bridge/
-├── config.py                      # all settings (pydantic-settings, env-driven)
-├── topic_mapping.py               # TopicMapping type alias + resolve_topic()
-├── main.py                        # entry point; wires components together
-└── client/
-    ├── publisher.py               # MqttPublisher Protocol
-    ├── downstream_mqtt_client.py  # publishes to the downstream broker
-    └── victron_mqtt_client.py     # connects to Victron, runs keepalive, bridges messages
-
-tests/
-├── fakes/fake_mqtt_publisher.py        # in-memory MqttPublisher for use in tests
-├── test_topic_mapping.py               # unit tests for resolve_topic()
-└── client/test_victron_mqtt_client.py  # behaviour-based tests (test_should_X_when_Y)
-```
-
-### Testing approach
-
-No mocks. `FakeMqttPublisher` is a real implementation of the `MqttPublisher` Protocol that records every `publish()` call in memory. The topic-resolution logic lives in the pure function `resolve_topic()` and is tested directly with known inputs, with no broker or network needed.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, the `just` command reference, commit style, testing approach, and the release process.
 
 ---
 
