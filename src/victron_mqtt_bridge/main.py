@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+from victron_mqtt_bridge.banner import BANNER
 from victron_mqtt_bridge.client.downstream_mqtt_client import (
     DownstreamConnectionConfig,
     DownstreamMqttClient,
@@ -24,6 +25,7 @@ async def run() -> None:
 
 
 def main() -> None:
+    print(BANNER)
     asyncio.run(run())
 
 
