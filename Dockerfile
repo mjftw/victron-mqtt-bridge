@@ -3,7 +3,8 @@ FROM python:3.13-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-WORKDIR /build
+# Use /app so .venv script shebangs match the runtime stage path
+WORKDIR /app
 
 # Copy dependency manifests first so this layer is cached across code changes
 COPY pyproject.toml uv.lock ./
@@ -23,10 +24,10 @@ FROM python:3.13-slim
 WORKDIR /app
 
 # Copy the fully-resolved virtualenv from the builder
-COPY --from=builder /build/.venv ./.venv
+COPY --from=builder /app/.venv ./.venv
 
 # Copy application source (no build tools, no uv, no cache)
-COPY --from=builder /build/src ./src
+COPY --from=builder /app/src ./src
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
