@@ -5,7 +5,7 @@ import aiomqtt
 
 from victron_mqtt_bridge.client.publisher import MqttPublisher
 from victron_mqtt_bridge.config import Settings
-from victron_mqtt_bridge.topic_mapping import TopicMapping
+from victron_mqtt_bridge.topic_mapping import TopicMapping, resolve_topic
 from victron_mqtt_bridge.topic_tree import build_topic_tree, render_topic_tree
 
 logger = logging.getLogger(__name__)
@@ -99,14 +99,13 @@ def resolve_downstream_topic(
 ) -> str | None:
     """Return the downstream topic for an incoming Victron message, or None if unmapped.
 
-    Strips the N/<serial>/ prefix from the incoming topic, then looks the
-    relative path up in topic_mapping.
+    Strips the N/<serial>/ prefix then delegates to resolve_topic, which
+    handles both exact leaf mappings and trailing-slash branch mappings.
     """
     prefix = _VICTRON_DATA_PREFIX_TEMPLATE.format(serial=serial)
     if not incoming_topic.startswith(prefix):
         return None
-    relative_path = incoming_topic[len(prefix):]
-    return topic_mapping.get(relative_path)
+    return resolve_topic(incoming_topic[len(prefix):], topic_mapping)
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +159,8 @@ class VictronMqttClient:
 
             for relative_path in self._topic_mapping:
                 prefix = _VICTRON_DATA_PREFIX_TEMPLATE.format(serial=serial)
-                topic = f"{prefix}{relative_path}"
+                # Branch mappings (trailing '/') use the MQTT '#' wildcard.
+                topic = f"{prefix}{relative_path}#" if relative_path.endswith("/") else f"{prefix}{relative_path}"
                 await client.subscribe(topic)
                 logger.debug("Subscribed to Victron topic %s", topic)
 

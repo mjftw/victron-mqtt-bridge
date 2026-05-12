@@ -18,7 +18,7 @@ where `<serial>` is the device's unique identifier (e.g. `a1b2c3d4e5f6`).
 
 1. **Connects** to the Victron MQTT broker.
 2. **Discovers the serial** by subscribing to `N/+/system/0/Serial` and reading the device identifier from the first message topic — no manual configuration of the serial needed.
-3. **Subscribes** to the exact set of Victron paths listed in your `TOPIC_MAPPING`, and nothing else.
+3. **Subscribes** to the paths listed in your `TOPIC_MAPPING` — individual leaf topics or entire subtrees (branch mappings).
 4. **Sends an immediate keepalive** to `R/<serial>/keepalive` so data starts flowing straight away, then repeats every `KEEPALIVE_INTERVAL_SECONDS` (default 60 s) for the lifetime of the connection.
 5. **Bridges each message** to the downstream broker, preserving the MQTT retain flag from the source.
 
@@ -57,23 +57,48 @@ All settings are read from environment variables or a `.env` file in the project
 
 `TOPIC_MAPPING` is a JSON object. Keys are Victron **relative paths** — the segment of the topic after `N/<serial>/`. Values are the **full topic** to publish on the downstream broker.
 
+Two key forms are supported:
+
+### Leaf mapping (exact path)
+
+Maps a single Victron topic to a single downstream topic.
+
 ```sh
 TOPIC_MAPPING='{
   "system/0/Dc/Battery/Soc":           "victron/battery/soc",
   "system/0/Dc/Battery/Voltage":        "victron/battery/voltage",
-  "system/0/Ac/Grid/L1/Power":          "victron/grid/l1/power",
-  "system/0/Ac/Grid/L2/Power":          "victron/grid/l2/power",
-  "system/0/Ac/Grid/L3/Power":          "victron/grid/l3/power",
-  "system/0/Ac/Consumption/L1/Power":   "victron/consumption/l1/power"
+  "system/0/Ac/Grid/L1/Power":          "victron/grid/l1/power"
 }'
 ```
 
-The service subscribes **only** to the paths listed here. Messages on any other topic are ignored.
+### Branch mapping (trailing `/`)
 
-To find the full list of available paths for your system, browse the Victron MQTT API with any MQTT client (e.g. `mosquitto_sub -h <cerbo-ip> -t 'N/#' -v`) after sending a keepalive to start the stream:
+A key ending with `/` subscribes to the entire subtree under that path (using an MQTT `#` wildcard) and forwards every message by appending the remaining path segments to the downstream prefix.
+
+```sh
+TOPIC_MAPPING='{
+  "system/0/Dc/Battery/": "victron/battery/",
+  "system/0/Ac/Grid/":    "victron/grid/"
+}'
+```
+
+For example, with `"system/0/Dc/Battery/": "victron/battery/"`:
+
+| Victron topic | Downstream topic |
+|---|---|
+| `N/<serial>/system/0/Dc/Battery/Soc` | `victron/battery/Soc` |
+| `N/<serial>/system/0/Dc/Battery/Voltage` | `victron/battery/Voltage` |
+| `N/<serial>/system/0/Dc/Battery/Current` | `victron/battery/Current` |
+
+Leaf and branch mappings can be mixed freely. When both an exact key and a branch key match the same incoming topic, the exact key wins. When multiple branch keys match, the longest (most specific) one wins.
+
+### Discovering available paths
+
+To find the full list of available paths for your system, browse the Victron MQTT API with any MQTT client after sending a keepalive to start the stream:
 
 ```sh
 mosquitto_pub -h <cerbo-ip> -t 'R/<serial>/keepalive' -m ''
+mosquitto_sub -h <cerbo-ip> -t 'N/#' -v
 ```
 
 ## Running
@@ -85,9 +110,9 @@ uv run victron-mqtt-bridge
 On startup you should see log lines like:
 
 ```
-2026-05-12 21:00:00 INFO ... Connected to Victron broker
-2026-05-12 21:00:00 INFO ... Discovered Victron serial {'serial': 'a1b2c3d4e5f6'}
-2026-05-12 21:00:01 INFO ... Bridging message {'from': 'N/a1b2c3d4e5f6/system/0/Dc/Battery/Soc', 'to': 'victron/battery/soc', 'retain': True}
+2026-05-12 21:00:00 INFO ... Connected to Victron broker at 192.168.1.83:1883
+2026-05-12 21:00:00 INFO ... Discovered Victron serial: a1b2c3d4e5f6
+2026-05-12 21:00:01 INFO ... Bridging N/a1b2c3d4e5f6/system/0/Dc/Battery/Soc -> victron/battery/Soc
 ```
 
 ## Docker
@@ -160,7 +185,7 @@ just dev-watch # subscribe to all topics on the local broker
 ```
 src/victron_mqtt_bridge/
 ├── config.py                      — all settings (pydantic-settings, env-driven)
-├── topic_mapping.py               — TopicMapping type alias
+├── topic_mapping.py               — TopicMapping type alias + resolve_topic()
 ├── main.py                        — entry point; wires components together
 └── client/
     ├── publisher.py               — MqttPublisher Protocol
@@ -168,10 +193,11 @@ src/victron_mqtt_bridge/
     └── victron_mqtt_client.py     — connects to Victron, runs keepalive, bridges messages
 
 tests/
-├── fakes/fake_mqtt_publisher.py   — in-memory MqttPublisher for use in tests
-└── client/test_victron_mqtt_client.py — behaviour-based tests (test_should_X_when_Y)
+├── fakes/fake_mqtt_publisher.py        — in-memory MqttPublisher for use in tests
+├── test_topic_mapping.py               — unit tests for resolve_topic()
+└── client/test_victron_mqtt_client.py  — behaviour-based tests (test_should_X_when_Y)
 ```
 
 ### Testing approach
 
-No mocks. `FakeMqttPublisher` is a real implementation of the `MqttPublisher` Protocol that records every `publish()` call. The message-routing logic lives in the pure function `resolve_downstream_topic()`, which is tested directly by feeding it known inputs and asserting on the output — no broker or network needed.
+No mocks. `FakeMqttPublisher` is a real implementation of the `MqttPublisher` Protocol that records every `publish()` call. The topic-resolution logic lives in the pure function `resolve_topic()` and is tested directly — no broker or network needed.

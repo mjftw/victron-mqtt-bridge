@@ -52,8 +52,9 @@ class DownstreamMqttClient:
         ) as client:
             self._client = client
             logger.info(
-                "Connected to downstream broker",
-                extra={"host": self._config.host, "port": self._config.port},
+                "Connected to downstream broker at %s:%s",
+                self._config.host,
+                self._config.port,
             )
             try:
                 yield self
@@ -70,6 +71,4 @@ class DownstreamMqttClient:
         if self._client is None:
             raise RuntimeError("DownstreamMqttClient is not connected")
         await self._client.publish(topic, payload=payload, retain=retain)
-        logger.debug(
-            "Published to downstream", extra={"topic": topic, "retain": retain}
-        )
+        logger.debug("Published to downstream %s%s", topic, " [retain]" if retain else "")
