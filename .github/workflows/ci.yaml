@@ -72,8 +72,12 @@ jobs:
 
       - name: Sync README to Docker Hub
         if: github.ref == 'refs/heads/main'
-        uses: peter-evans/dockerhub-description@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: mjftw/victron-mqtt-bridge
+        run: |
+          token=$(curl -fsSL -X POST "https://hub.docker.com/v2/users/login" \
+            -H "Content-Type: application/json" \
+            -d '{"username":"${{ secrets.DOCKERHUB_USERNAME }}","password":"${{ secrets.DOCKERHUB_TOKEN }}"}' \
+            | jq -r '.token')
+          curl -fsSL -X PATCH "https://hub.docker.com/v2/repositories/mjftw/victron-mqtt-bridge/" \
+            -H "Authorization: Bearer $token" \
+            -H "Content-Type: application/json" \
+            -d "{\"full_description\":$(jq -Rs . < README.md)}"
