@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     victron_mqtt_use_ssl: bool = False
     keepalive_interval_seconds: int = 60
 
+    # JSON-encoded mapping of Victron relative paths to downstream topics.
+    # e.g. TOPIC_MAPPING='{"system/0/Dc/Battery/Soc": "victron/battery/soc"}'
+    topic_mapping: dict[str, str]
+
     downstream_mqtt_host: str
     downstream_mqtt_port: int = 1883
     downstream_mqtt_use_ssl: bool = False

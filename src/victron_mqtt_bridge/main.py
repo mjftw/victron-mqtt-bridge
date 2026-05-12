@@ -13,19 +13,13 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 
-# Map Victron relative paths (after N/<serial>/) to downstream MQTT topics.
-# Extend this dict as more telemetry points are needed.
-TOPIC_MAPPING: dict[str, str] = {
-    "system/0/Dc/Battery/Soc": "victron/battery/soc",
-}
-
 
 async def run() -> None:
     settings = Settings()
     config = DownstreamConnectionConfig.from_settings(settings)
     downstream = DownstreamMqttClient(config)
     async with downstream.connected():
-        client = VictronMqttClient(settings, downstream, TOPIC_MAPPING)
+        client = VictronMqttClient(settings, downstream, settings.topic_mapping)
         await client.connect()
 
 
