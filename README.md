@@ -25,6 +25,7 @@ Second, a transparent bridge would expose the raw Victron topic structure (seria
 - [Configuration](#configuration)
 - [Topic mapping](#topic-mapping)
 - [Running](#running)
+- [Exploring topics with victron-snapshot](#exploring-topics-with-victron-snapshot)
 - [Docker](#docker)
 - [Contributing](#contributing)
 - [License](#license)
@@ -38,6 +39,7 @@ Second, a transparent bridge would expose the raw Victron topic structure (seria
 - **Leaf and branch mappings**: map individual topics exactly, or forward an entire subtree with a single trailing `/`.
 - **Pre-flight connectivity check**: verifies both brokers are reachable before starting, with a clear error if they are not.
 - **Docker-ready**: ships a minimal multi-stage image with no build tools or dev dependencies.
+- **`victron-snapshot` CLI**: one-shot JSON snapshot of any set of topics — useful for exploring what your device publishes before writing a mapping, or piping into `jq` and other tools.
 
 ---
 
@@ -129,12 +131,7 @@ Leaf and branch mappings can be mixed freely. When both match the same incoming 
 
 See **[docs/victron-mqtt-topics.md](docs/victron-mqtt-topics.md)** for a curated reference of all services, paths, units, and enum values (derived from the [official Venus OS dbus wiki](https://github.com/victronenergy/venus/wiki/dbus)).
 
-To discover paths live on your own device:
-
-```sh
-mosquitto_pub -h <cerbo-ip> -t 'R/<serial>/keepalive' -m ''
-mosquitto_sub -h <cerbo-ip> -t 'N/#' -v
-```
+To explore paths live on your own device, use `victron-snapshot` (see [below](#exploring-topics-with-victron-snapshot)).
 
 ---
 
@@ -154,6 +151,74 @@ On startup you should see:
 ```
 
 Press `Ctrl+C` to stop cleanly.
+
+---
+
+## Exploring topics with victron-snapshot
+
+`victron-snapshot` is a companion CLI for local exploration. It connects to your Cerbo GX, collects messages for a short window, and outputs the **latest value seen for each topic** as JSON — no downstream broker, no configuration file needed.
+
+```sh
+uv run victron-snapshot --help
+```
+
+```
+Usage: victron-snapshot [OPTIONS]
+
+  Collect a one-shot JSON snapshot of matching Victron MQTT topics.
+
+Options:
+  --host TEXT         Victron Cerbo GX MQTT broker hostname or IP.  [required]
+  --ssl               Use TLS/SSL on port 8883 (default: plain MQTT on port 1883).
+  --topic TEXT        Relative Victron topic path to snapshot. Trailing '/'
+                      subscribes to the whole branch. May be repeated.
+                      [default: /]
+  --timeout FLOAT     Seconds to wait for messages before exiting.  [default: 5.0]
+  -o, --output PATH   File to write JSON output to. Defaults to stdout.
+```
+
+### See everything your device publishes
+
+With no `--topic` flags the default is `/`, which subscribes to the entire `N/<serial>/` tree:
+
+```sh
+victron-snapshot --host 192.168.1.83
+```
+
+This is the fastest way to discover what services and paths your specific Cerbo GX exposes.
+
+### Snapshot a single service
+
+```sh
+victron-snapshot --host 192.168.1.83 --topic 'solarcharger/'
+```
+
+### Snapshot specific leaf values
+
+```sh
+victron-snapshot --host 192.168.1.83 \
+  --topic 'system/0/Dc/Battery/Soc' \
+  --topic 'system/0/Dc/Battery/Voltage' \
+  --topic 'system/0/Dc/Pv/Power'
+```
+
+### Write to a file and pipe into jq
+
+```sh
+victron-snapshot --host 192.168.1.83 --topic 'solarcharger/' -o snapshot.json
+cat snapshot.json | jq 'to_entries | map(select(.value.value != null)) | from_entries'
+```
+
+### Identify devices by name
+
+Combine `--topic` flags across different branches to correlate names with device IDs in one shot:
+
+```sh
+victron-snapshot --host 192.168.1.83 \
+  --topic 'solarcharger/' \
+  --topic 'battery/' \
+  | jq 'with_entries(select(.key | test("CustomName|ProductName|Dc/0/Power")))'
+```
 
 ---
 

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 _SERIAL_DISCOVERY_TOPIC = "N/+/system/0/Serial"
 _KEEPALIVE_TOPIC_TEMPLATE = "R/{serial}/keepalive"
-_VICTRON_DATA_PREFIX_TEMPLATE = "N/{serial}/"
+VICTRON_DATA_PREFIX_TEMPLATE = "N/{serial}/"
 
 
 # ---------------------------------------------------------------------------
@@ -19,7 +19,7 @@ _VICTRON_DATA_PREFIX_TEMPLATE = "N/{serial}/"
 # ---------------------------------------------------------------------------
 
 
-async def _send_keepalive(client: aiomqtt.Client, serial: str) -> None:
+async def send_keepalive(client: aiomqtt.Client, serial: str) -> None:
     topic = _KEEPALIVE_TOPIC_TEMPLATE.format(serial=serial)
     await client.publish(topic, payload="")
     logger.debug("Sent keepalive for serial %s", serial)
@@ -32,7 +32,7 @@ async def _keepalive_loop(
 ) -> None:
     while True:
         await asyncio.sleep(interval_seconds)
-        await _send_keepalive(client, serial)
+        await send_keepalive(client, serial)
 
 
 # ---------------------------------------------------------------------------
@@ -40,7 +40,7 @@ async def _keepalive_loop(
 # ---------------------------------------------------------------------------
 
 
-async def _discover_serial(client: aiomqtt.Client) -> str:
+async def discover_serial(client: aiomqtt.Client) -> str:
     """Subscribe to the serial discovery topic and return the first serial seen."""
     await client.subscribe(_SERIAL_DISCOVERY_TOPIC)
     async for message in client.messages:
@@ -68,7 +68,7 @@ def resolve_downstream_topic(
     Strips the N/<serial>/ prefix then delegates to resolve_topic, which
     handles both exact leaf mappings and trailing-slash branch mappings.
     """
-    prefix = _VICTRON_DATA_PREFIX_TEMPLATE.format(serial=serial)
+    prefix = VICTRON_DATA_PREFIX_TEMPLATE.format(serial=serial)
     if not incoming_topic.startswith(prefix):
         return None
     return resolve_topic(incoming_topic[len(prefix):], topic_mapping)
@@ -109,16 +109,16 @@ class VictronMqttClient:
                 self._settings.victron_mqtt_host,
                 self._settings.victron_mqtt_port,
             )
-            serial = await _discover_serial(client)
+            serial = await discover_serial(client)
 
             for relative_path in self._topic_mapping:
-                prefix = _VICTRON_DATA_PREFIX_TEMPLATE.format(serial=serial)
+                prefix = VICTRON_DATA_PREFIX_TEMPLATE.format(serial=serial)
                 # Branch mappings (trailing '/') use the MQTT '#' wildcard.
                 topic = f"{prefix}{relative_path}#" if relative_path.endswith("/") else f"{prefix}{relative_path}"
                 await client.subscribe(topic)
                 logger.debug("Subscribed to Victron topic %s", topic)
 
-            await _send_keepalive(client, serial)
+            await send_keepalive(client, serial)
 
             keepalive_task = asyncio.create_task(
                 _keepalive_loop(
