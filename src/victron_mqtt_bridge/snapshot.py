@@ -41,6 +41,23 @@ def _to_tree(flat: dict[str, object]) -> dict[str, object]:
     return tree
 
 
+def _apply_depth(node: object, depth: int | None) -> object:
+    """Recursively trim a tree to at most `depth` levels.
+
+    Dict nodes beyond the depth limit are replaced with "..." to signal
+    that content exists but is not shown — analogous to find -maxdepth.
+    A depth of None means unlimited.
+    """
+    if not isinstance(node, dict):
+        return node
+    if depth is not None and depth <= 0:
+        return "..."
+    return {
+        key: _apply_depth(child, None if depth is None else depth - 1)
+        for key, child in node.items()
+    }
+
+
 async def _collect(
     host: str,
     use_ssl: bool,
@@ -114,12 +131,23 @@ async def _collect(
     default=None,
     help="File to write JSON output to. Defaults to stdout.",
 )
+@click.option(
+    "--depth", "-d",
+    type=int,
+    default=None,
+    help=(
+        "Limit output to this many levels of nesting. "
+        "Deeper subtrees are shown as \"...\". "
+        "Omit for unlimited depth."
+    ),
+)
 def snapshot(
     host: str,
     use_ssl: bool,
     topics: tuple[str, ...],
     timeout: float,
     output: Path | None,
+    depth: int | None,
 ) -> None:
     """Collect a one-shot JSON snapshot of matching Victron MQTT topics.
 
@@ -130,7 +158,7 @@ def snapshot(
     """
     logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
     flat = asyncio.run(_collect(host, use_ssl, topics, timeout))
-    tree = _to_tree(flat)
+    tree = _apply_depth(_to_tree(flat), depth)
     serialised = json.dumps(tree, indent=2, sort_keys=True) + "\n"
 
     if output is None:
