@@ -44,7 +44,10 @@ async def _collect(
         prefix = VICTRON_DATA_PREFIX_TEMPLATE.format(serial=serial)
 
         for topic in topics:
-            mqtt_topic = f"{prefix}{topic}#" if topic.endswith("/") else f"{prefix}{topic}"
+            # Strip any leading slash — topics are relative to the device prefix.
+            # "/" (the default "everything") becomes just "#" after stripping.
+            relative = topic.lstrip("/")
+            mqtt_topic = f"{prefix}{relative}#" if (not relative or relative.endswith("/")) else f"{prefix}{relative}"
             await client.subscribe(mqtt_topic)
             logger.debug("Subscribed to %s", mqtt_topic)
 
