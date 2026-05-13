@@ -14,7 +14,6 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import TextIO
 
 import aiomqtt
 import click
@@ -26,6 +25,20 @@ from victron_mqtt_bridge.client.victron_mqtt_client import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _to_tree(flat: dict[str, object]) -> dict[str, object]:
+    """Convert a flat {\"a/b/c\": value} mapping into a nested dict tree."""
+    tree: dict[str, object] = {}
+    for path, value in flat.items():
+        parts = path.split("/")
+        node = tree
+        for part in parts[:-1]:
+            if part not in node or not isinstance(node[part], dict):
+                node[part] = {}
+            node = node[part]  # type: ignore[assignment]
+        node[parts[-1]] = value
+    return tree
 
 
 async def _collect(
@@ -116,14 +129,12 @@ def snapshot(
     The output contains the latest value seen for each topic during that window.
     """
     logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
-    results = asyncio.run(_collect(host, use_ssl, topics, timeout))
-
-    def _write(f: TextIO) -> None:
-        json.dump(results, f, indent=2, sort_keys=True)
-        f.write("\n")
+    flat = asyncio.run(_collect(host, use_ssl, topics, timeout))
+    tree = _to_tree(flat)
+    serialised = json.dumps(tree, indent=2, sort_keys=True) + "\n"
 
     if output is None:
-        _write(sys.stdout)
+        sys.stdout.write(serialised)
     else:
-        output.write_text(json.dumps(results, indent=2, sort_keys=True) + "\n")
-        click.echo(f"Wrote {len(results)} topics to {output}", err=True)
+        output.write_text(serialised)
+        click.echo(f"Wrote {len(flat)} topics to {output}", err=True)
