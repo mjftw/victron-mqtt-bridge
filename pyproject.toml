@@ -1,6 +1,6 @@
 [project]
 name = "victron-mqtt-bridge"
-version = "0.1.0"
+version = "0.2.0"
 description = "Bridges Victron Cerbo GX MQTT telemetry to a downstream MQTT broker"
 readme = "README.md"
 authors = [
