@@ -156,7 +156,7 @@ Press `Ctrl+C` to stop cleanly.
 
 ## Exploring topics with victron-snapshot
 
-`victron-snapshot` is a companion CLI for local exploration. It connects to your Cerbo GX, collects messages for a short window, and outputs the **latest value seen for each topic** as JSON — no downstream broker, no configuration file needed.
+`victron-snapshot` is a companion CLI for local exploration and for combining with other CLI tools and automations. It connects to your Cerbo GX, collects messages for a short window, and outputs the **latest value seen for each topic** as JSON — no downstream broker, no configuration file needed.
 
 ```sh
 uv run victron-snapshot --help
