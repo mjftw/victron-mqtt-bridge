@@ -1,8 +1,9 @@
 """One-shot snapshot of Victron MQTT topics, written as JSON.
 
 Usage:
-    victron-snapshot --host 192.168.1.83 --topic 'solarcharger/' --topic 'system/0/Dc/Battery/'
-    victron-snapshot --host 192.168.1.83 --topic 'solarcharger/' -o snapshot.json
+    victron-snapshot 192.168.1.83
+    victron-snapshot 192.168.1.83 --topic 'solarcharger/' --topic 'system/0/Dc/Battery/'
+    victron-snapshot 192.168.1.83 --topic 'solarcharger/' -o snapshot.json
 
 Each --topic is a relative Victron path (segment after N/<serial>/).
 A trailing '/' subscribes to the whole branch via '#'; otherwise an exact topic is used.
@@ -67,7 +68,7 @@ async def _collect(
 
 
 @click.command()
-@click.option("--host", required=True, help="Victron Cerbo GX MQTT broker hostname or IP.")
+@click.argument("host")
 @click.option(
     "--ssl", "use_ssl", is_flag=True, default=False,
     help="Use TLS/SSL on port 8883 (default: plain MQTT on port 1883).",

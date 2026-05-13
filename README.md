@@ -159,16 +159,18 @@ Press `Ctrl+C` to stop cleanly.
 `victron-snapshot` is a companion CLI for local exploration and for combining with other CLI tools and automations. It connects to your Cerbo GX, collects messages for a short window, and outputs the **latest value seen for each topic** as JSON — no downstream broker, no configuration file needed.
 
 ```sh
-uv run victron-snapshot --help
+uv run victron-snapshot 192.168.1.83 --help
 ```
 
 ```
-Usage: victron-snapshot [OPTIONS]
+Usage: victron-snapshot [OPTIONS] HOST
 
   Collect a one-shot JSON snapshot of matching Victron MQTT topics.
 
+Arguments:
+  HOST                Victron Cerbo GX MQTT broker hostname or IP.
+
 Options:
-  --host TEXT         Victron Cerbo GX MQTT broker hostname or IP.  [required]
   --ssl               Use TLS/SSL on port 8883 (default: plain MQTT on port 1883).
   --topic TEXT        Relative Victron topic path to snapshot. Trailing '/'
                       subscribes to the whole branch. May be repeated.
@@ -182,7 +184,7 @@ Options:
 With no `--topic` flags the default is `/`, which subscribes to the entire `N/<serial>/` tree:
 
 ```sh
-victron-snapshot --host 192.168.1.83
+victron-snapshot 192.168.1.83
 ```
 
 This is the fastest way to discover what services and paths your specific Cerbo GX exposes.
@@ -190,13 +192,13 @@ This is the fastest way to discover what services and paths your specific Cerbo 
 ### Snapshot a single service
 
 ```sh
-victron-snapshot --host 192.168.1.83 --topic 'solarcharger/'
+victron-snapshot 192.168.1.83 --topic 'solarcharger/'
 ```
 
 ### Snapshot specific leaf values
 
 ```sh
-victron-snapshot --host 192.168.1.83 \
+victron-snapshot 192.168.1.83 \
   --topic 'system/0/Dc/Battery/Soc' \
   --topic 'system/0/Dc/Battery/Voltage' \
   --topic 'system/0/Dc/Pv/Power'
@@ -205,7 +207,7 @@ victron-snapshot --host 192.168.1.83 \
 ### Write to a file and pipe into jq
 
 ```sh
-victron-snapshot --host 192.168.1.83 --topic 'solarcharger/' -o snapshot.json
+victron-snapshot 192.168.1.83 --topic 'solarcharger/' -o snapshot.json
 cat snapshot.json | jq 'to_entries | map(select(.value.value != null)) | from_entries'
 ```
 
@@ -214,7 +216,7 @@ cat snapshot.json | jq 'to_entries | map(select(.value.value != null)) | from_en
 Combine `--topic` flags across different branches to correlate names with device IDs in one shot:
 
 ```sh
-victron-snapshot --host 192.168.1.83 \
+victron-snapshot 192.168.1.83 \
   --topic 'solarcharger/' \
   --topic 'battery/' \
   | jq 'with_entries(select(.key | test("CustomName|ProductName|Dc/0/Power")))'
