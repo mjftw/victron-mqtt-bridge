@@ -167,6 +167,8 @@ Usage: victron-snapshot [OPTIONS] HOST
 
   Collect a one-shot JSON snapshot of matching Victron MQTT topics.
 
+  HOST is the hostname or IP address of the Victron Cerbo GX MQTT broker.
+
 Arguments:
   HOST                Victron Cerbo GX MQTT broker hostname or IP.
 

@@ -107,6 +107,8 @@ def snapshot(
 ) -> None:
     """Collect a one-shot JSON snapshot of matching Victron MQTT topics.
 
+    HOST is the hostname or IP address of the Victron Cerbo GX MQTT broker.
+
     Connects, subscribes, and collects messages for --timeout seconds.
     The output contains the latest value seen for each topic during that window.
     """
